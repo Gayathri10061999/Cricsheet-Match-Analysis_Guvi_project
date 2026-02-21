@@ -1,44 +1,46 @@
 from selenium import webdriver
-from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
 import time
 import os
-import zipfile
+import requests
 
-DOWNLOAD_DIR = os.path.abspath("C:/Users/gayat/cricsheet_data")
+# Download directory
+DOWNLOAD_DIR = "C:/Users/gayat/AppData/Local/Programs/Python/Python313"
+
+# Create folder if not exists
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-chrome_options = Options()
-chrome_options.add_experimental_option("prefs", {
-    "download.default_directory": DOWNLOAD_DIR,
-    "download.prompt_for_download": False,
-    "safebrowsing.enabled": True
-})
+# Configure Selenium
+options = Options()
+options.add_argument("--headless")  # Headless mode
+driver = webdriver.Chrome(options=options)
 
-driver = webdriver.Chrome(options=chrome_options)
-driver.get("https://cricsheet.org/matches/")
+# URL to scrape
+url = "https://cricsheet.org/matches/"
+driver.get(url)
+time.sleep(3)
 
-wait = WebDriverWait(driver, 30)
+# Get all match links
+links = driver.find_elements(By.CSS_SELECTOR, "a[href$='.json']")
 
-zip_files = {
-    "tests_json.zip": "tests",
-    "odis_json.zip": "odis",
-    "t20s_json.zip": "t20s",
-    "ipl_json.zip": "ipl"
-}
+# Download JSON files
+for link in links:
+    file_url = link.get_attribute("href")
+    match_format = file_url.split("/")[-2]
+    filename = file_url.split("/")[-1]
 
-for zip_name, folder in zip_files.items():
-    print(f"Downloading {zip_name}...")
+    format_folder = os.path.join(DOWNLOAD_DIR, match_format)
+    os.makedirs(format_folder, exist_ok=True)
+
+    file_path = os.path.join(format_folder, filename)
     
-    link = wait.until(
-        EC.presence_of_element_located(
-            (By.XPATH, f"//a[contains(@href, '{zip_name}')]")
-        )
-    )
-    driver.execute_script("arguments[0].click();", link)
-    time.sleep(5)
+    if not os.path.exists(file_path):
+        print(f"Downloading {filename}")
+        response = requests.get(file_url)
+        with open(file_path, "wb") as f:
+            f.write(response.content)
+    else:
+        print(f"{filename} already exists. Skipping...")
 
 driver.quit()
-print("ZIP downloads triggered.")
