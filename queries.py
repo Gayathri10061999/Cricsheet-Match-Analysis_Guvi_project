@@ -14,6 +14,7 @@ LIMIT 10;
 
 -- 3. Team with highest ODI win percentage
 SELECT winner, COUNT(*) as wins
-FROM odi_matches
+FROM t20_matches
 GROUP BY winner
 ORDER BY wins DESC;
+
