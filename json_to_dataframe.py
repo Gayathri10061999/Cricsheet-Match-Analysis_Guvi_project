@@ -2,14 +2,19 @@ import json
 import pandas as pd
 import os
 
-DATA_DIR = "C:/Users/gayat/AppData/Local/Programs/Python/Python313/t20s_json"
+
+
+DATA_t20 = "C:/Users/gayat/AppData/Local/Programs/Python/Python313/t20s_json"
+DATA_odis = "C:/Users/gayat/AppData/Local/Programs/Python/Python313/odis_json"
+DATA_IPL ="C:/Users/gayat/AppData/Local/Programs/Python/Python313/ipl_json"
+DATA_tests="C:/Users/gayat/AppData/Local/Programs/Python/Python313/tests_json"
 
 matches = []
 deliveries = []
 
-for file in os.listdir(DATA_DIR):
+for file in os.listdir(DATA_tests):
     if file.endswith(".json"):
-        with open(os.path.join(DATA_DIR, file), "r") as f:
+        with open(os.path.join(DATA_tests, file), "r") as f:
             data = json.load(f)
 
         match_id = file.replace(".json", "")
@@ -21,8 +26,11 @@ for file in os.listdir(DATA_DIR):
             "venue": info.get("venue"),
             "team1": info["teams"][0],
             "team2": info["teams"][1],
-            "winner": info.get("outcome", {}).get("winner"),
-            "match_type": info["match_type"]
+            "winner": info.get("toss", {}).get("winner"),
+            "toss_Decision":info.get("toss",{}).get("decision"),
+            "match_type": info["match_type"],
+            "EventName":info.get("event",{}).get("name")
+            
         })
 
         for inning in data["innings"]:
@@ -37,6 +45,7 @@ for file in os.listdir(DATA_DIR):
                         "bowler": ball["bowler"],
                         "runs": ball["runs"]["batter"],
                         "extras": ball["runs"]["extras"]
+                       
                     })
 
 matches_df = pd.DataFrame(matches)
