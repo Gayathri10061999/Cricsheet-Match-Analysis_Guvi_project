@@ -1,46 +1,78 @@
 from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 import time
 import os
-import requests
+import zipfile
+import shutil
 
-# Download directory
-DOWNLOAD_DIR = "C:/Users/gayat/AppData/Local/Programs/Python/Python313"
-
-# Create folder if not exists
+DOWNLOAD_DIR = os.path.abspath("C:/Users/gayat/AppData/Local/Programs/Python/Python313")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-# Configure Selenium
-options = Options()
-options.add_argument("--headless")  # Headless mode
-driver = webdriver.Chrome(options=options)
+chrome_options = Options()
+chrome_options.add_experimental_option("prefs", {
+    "download.default_directory": DOWNLOAD_DIR,
+    "download.prompt_for_download": False,
+    "safebrowsing.enabled": True
+})
 
-# URL to scrape
-url = "https://cricsheet.org/matches/"
-driver.get(url)
-time.sleep(3)
+driver = webdriver.Chrome(options=chrome_options)
+driver.get("https://cricsheet.org/matches/")
 
-# Get all match links
-links = driver.find_elements(By.CSS_SELECTOR, "a[href$='.json']")
+wait = WebDriverWait(driver, 30)
 
-# Download JSON files
-for link in links:
-    file_url = link.get_attribute("href")
-    match_format = file_url.split("/")[-2]
-    filename = file_url.split("/")[-1]
+zip_files = [
+    "tests_json.zip",
+    "odis_json.zip",
+    "t20s_json.zip",
+    "ipl_json.zip"
+]
 
-    format_folder = os.path.join(DOWNLOAD_DIR, match_format)
-    os.makedirs(format_folder, exist_ok=True)
-
-    file_path = os.path.join(format_folder, filename)
+# Step 1: Delete old ZIP files BEFORE downloading
+for zip_name in zip_files:
+    zip_path = os.path.join(DOWNLOAD_DIR, zip_name)
     
-    if not os.path.exists(file_path):
-        print(f"Downloading {filename}")
-        response = requests.get(file_url)
-        with open(file_path, "wb") as f:
-            f.write(response.content)
-    else:
-        print(f"{filename} already exists. Skipping...")
+    if os.path.exists(zip_path):
+        os.remove(zip_path)
+        print(f"Deleted old ZIP: {zip_name}")
+
+# Step 2: Download fresh ZIP files
+for zip_name in zip_files:
+    print(f"Downloading {zip_name}...")
+    
+    link = wait.until(
+        EC.presence_of_element_located(
+            (By.XPATH, f"//a[contains(@href, '{zip_name}')]")
+        )
+    )
+    driver.execute_script("arguments[0].click();", link)
+    time.sleep(8)
 
 driver.quit()
+print("Downloads completed.")
+
+# Step 3: Wait for downloads to finish
+def wait_for_downloads(folder):
+    while any(fname.endswith(".crdownload") for fname in os.listdir(folder)):
+        time.sleep(2)
+
+wait_for_downloads(DOWNLOAD_DIR)
+
+# Step 4: Extract and REPLACE folders
+for zip_name in zip_files:
+    zip_path = os.path.join(DOWNLOAD_DIR, zip_name)
+    extract_folder = os.path.join(DOWNLOAD_DIR, zip_name.replace(".zip", ""))
+
+    # ❗ Delete old extracted folder if exists
+    if os.path.exists(extract_folder):
+        shutil.rmtree(extract_folder)
+        print(f"Deleted old folder: {extract_folder}")
+
+    print(f"Extracting {zip_name}...")
+
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        zip_ref.extractall(extract_folder)
+
+print("All files replaced and extracted successfully!")
